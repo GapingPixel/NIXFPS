@@ -1,0 +1,266 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+
+
+#include "Online/Menu.h"
+#include "Components/Button.h"
+#include "OnlineSessionSettings.h"
+#include "OnlineSubsystem.h"
+#include "OnlineSubsystemUtils.h"
+#include "Components/CheckBox.h"
+#include "GameModes/SMTestGameMode.h"
+#include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Online/MultiplayerSessionsSubsystem.h"
+
+class ASMTestGameMode;
+
+void UMenu::MenuSetup(int32 NumberOfPublicConnections, FString TypeOfMatch, FString LobbyPath)
+{
+	PathToLobby = FString::Printf(TEXT("%s?listen"), *LobbyPath);
+	NumPublicConnections = NumberOfPublicConnections;
+	MatchDifficulty = TypeOfMatch;
+	AddToViewport();
+	SetVisibility(ESlateVisibility::Visible);
+	SetIsFocusable(true);
+
+	const UWorld* World = GetWorld();
+	if (World)
+	{
+		APlayerController* PlayerController = World->GetFirstPlayerController();
+		if (PlayerController)
+		{
+			FInputModeUIOnly InputModeData;
+			InputModeData.SetWidgetToFocus(TakeWidget());
+			InputModeData.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+			PlayerController->SetInputMode(InputModeData);
+			PlayerController->SetShowMouseCursor(true);
+		}
+	}
+
+	const UGameInstance* GameInstance = GetGameInstance();
+	if (GameInstance)
+	{
+		MultiplayerSessionsSubsystem = GameInstance->GetSubsystem<UMultiplayerSessionsSubsystem>();
+	}
+
+	if (MultiplayerSessionsSubsystem)
+	{
+		MultiplayerSessionsSubsystem->MultiplayerOnCreateSessionComplete.AddDynamic(this, &ThisClass::OnCreateSession);
+		MultiplayerSessionsSubsystem->MultiplayerOnFindSessionsComplete.AddUObject(this, &ThisClass::OnFindSessions);
+		MultiplayerSessionsSubsystem->MultiplayerOnJoinSessionComplete.AddUObject(this, &ThisClass::OnJoinSession);
+		MultiplayerSessionsSubsystem->MultiplayerOnDestroySessionComplete.AddDynamic(this, &ThisClass::OnDestroySession);
+		MultiplayerSessionsSubsystem->MultiplayerOnStartSessionComplete.AddDynamic(this, &ThisClass::OnStartSession);
+		
+	}
+}
+
+bool UMenu::Initialize()
+{
+	if (!Super::Initialize())
+	{
+		return false;
+	}
+
+	if (HostButton)
+	{
+		HostButton->OnClicked.AddDynamic(this, &ThisClass::HostButtonClicked);
+	}
+	if (JoinButton)
+	{
+		JoinButton->OnClicked.AddDynamic(this, &ThisClass::JoinButtonClicked);
+	}
+	if (ExitButton)
+	{
+		ExitButton->OnClicked.AddDynamic(this, &ThisClass::ExitButtonClicked);
+	}
+	if (EasyCheckbox)
+	{
+		EasyCheckbox->OnCheckStateChanged.AddDynamic(this, &ThisClass::EasyCheckBoxStateChanged);
+	}
+	if (NormalCheckbox)
+	{
+		NormalCheckbox->OnCheckStateChanged.AddDynamic(this, &ThisClass::NormalCheckBoxStateChanged);
+	}
+	if (HardCheckbox)
+	{
+		HardCheckbox->OnCheckStateChanged.AddDynamic(this, &ThisClass::HardCheckBoxStateChanged);
+	}
+	if (ExpertCheckbox)
+	{
+		ExpertCheckbox->OnCheckStateChanged.AddDynamic(this, &ThisClass::ExpertCheckBoxStateChanged);
+	}
+	if (AdultContentCheckbox)
+	{
+		AdultContentCheckbox->OnCheckStateChanged.AddDynamic(this, &ThisClass::AdultContentCheckBoxStateChanged);
+	}
+	return true;
+}
+
+void UMenu::NativeDestruct()
+{
+	MenuTearDown();
+	Super::NativeDestruct();
+}
+
+void UMenu::OnCreateSession(bool bWasSuccessful) 
+{
+	if (bWasSuccessful)
+	{
+		UWorld* World = GetWorld();
+		if (World)
+		{
+			World->ServerTravel(PathToLobby);
+		}
+	}
+	else
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				15.f,
+				FColor::Red,
+				FString(TEXT("Failed to create session!"))
+			);
+		}
+		HostButton->SetIsEnabled(true);
+	}
+}
+
+void UMenu::OnFindSessions(const TArray<FOnlineSessionSearchResult>& SessionResults, bool bWasSuccessful) const
+{
+	if (MultiplayerSessionsSubsystem == nullptr)
+	{
+		return;
+	}
+
+	for (auto Result : SessionResults)
+	{
+		FString SettingsValue;
+		Result.Session.SessionSettings.Get(FName("MatchType"), SettingsValue);
+		if (SettingsValue == MatchDifficulty)
+		{
+			MultiplayerSessionsSubsystem->JoinSession(Result);
+			return;
+		}
+	}
+	if (!bWasSuccessful || SessionResults.Num() == 0)
+	{
+		JoinButton->SetIsEnabled(true);
+	}
+}
+
+void UMenu::OnJoinSession(EOnJoinSessionCompleteResult::Type Result) const
+{
+	const IOnlineSubsystem* Subsystem = Online::GetSubsystem(GetWorld());
+	if (Subsystem)
+	{
+		IOnlineSessionPtr SessionInterface = Subsystem->GetSessionInterface();
+		if (SessionInterface.IsValid())
+		{
+			FString Address;
+			SessionInterface->GetResolvedConnectString(NAME_GameSession, Address);
+
+			APlayerController* PlayerController = GetGameInstance()->GetFirstLocalPlayerController();
+			if (PlayerController)
+			{
+				PlayerController->ClientTravel(Address, ETravelType::TRAVEL_Absolute);
+			}
+		}
+	}
+}
+
+void UMenu::OnDestroySession(bool bWasSuccessful)
+{
+}
+
+void UMenu::OnStartSession(bool bWasSuccessful)
+{
+}
+
+void UMenu::EasyCheckBoxStateChanged(bool bIsChecked)
+{
+	NormalCheckbox->SetCheckedState(ECheckBoxState::Unchecked);
+	HardCheckbox->SetCheckedState(ECheckBoxState::Unchecked);
+	ExpertCheckbox->SetCheckedState(ECheckBoxState::Unchecked);
+	MatchDifficulty = FString(TEXT("Easy"));
+}
+
+void UMenu::NormalCheckBoxStateChanged(bool bIsChecked)
+{
+	EasyCheckbox->SetCheckedState(ECheckBoxState::Unchecked);
+	HardCheckbox->SetCheckedState(ECheckBoxState::Unchecked);
+	ExpertCheckbox->SetCheckedState(ECheckBoxState::Unchecked);
+	MatchDifficulty = FString(TEXT("Normal"));
+	
+}
+
+void UMenu::HardCheckBoxStateChanged(bool bIsChecked)
+{
+	NormalCheckbox->SetCheckedState(ECheckBoxState::Unchecked);
+	EasyCheckbox->SetCheckedState(ECheckBoxState::Unchecked);
+	ExpertCheckbox->SetCheckedState(ECheckBoxState::Unchecked);
+	MatchDifficulty = FString(TEXT("Hard"));
+}
+
+void UMenu::ExpertCheckBoxStateChanged(bool bIsChecked)
+{
+	NormalCheckbox->SetCheckedState(ECheckBoxState::Unchecked);
+	EasyCheckbox->SetCheckedState(ECheckBoxState::Unchecked);
+	HardCheckbox->SetCheckedState(ECheckBoxState::Unchecked);
+	MatchDifficulty = FString(TEXT("Expert"));
+}
+
+void UMenu::AdultContentCheckBoxStateChanged(bool bIsChecked)
+{
+	ASMTestGameMode* GameMode = Cast<ASMTestGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
+	if (GameMode)
+	{
+		GameMode->bAdultContent = bIsChecked;
+	}
+}
+
+void UMenu::HostButtonClicked() 
+{
+	HostButton->SetIsEnabled(false);
+	if (MultiplayerSessionsSubsystem)
+	{
+		ASMTestGameMode* GameMode = Cast<ASMTestGameMode>(UGameplayStatics::GetGameMode(GetWorld()));
+		if (GameMode)
+		{
+			GameMode->MatchDifficulty = MatchDifficulty;
+		}
+		MultiplayerSessionsSubsystem->CreateSession(NumPublicConnections, MatchDifficulty);
+	}
+}
+
+void UMenu::JoinButtonClicked() 
+{
+	JoinButton->SetIsEnabled(false);
+	if (MultiplayerSessionsSubsystem)
+	{
+		MultiplayerSessionsSubsystem->FindSessions(10000);
+	}
+}
+
+void UMenu::ExitButtonClicked()
+{
+	UKismetSystemLibrary::QuitGame(GetWorld(), nullptr, EQuitPreference::Quit, false);
+}
+
+void UMenu::MenuTearDown()
+{
+	RemoveFromParent();
+	const UWorld* World = GetWorld();
+	if (World)
+	{
+		APlayerController* PlayerController = World->GetFirstPlayerController();
+		if (PlayerController)
+		{
+			const FInputModeGameOnly InputModeData;
+			PlayerController->SetInputMode(InputModeData);
+			PlayerController->SetShowMouseCursor(false);
+		}
+	}
+}
