@@ -32,9 +32,8 @@ protected:
 	FTimerHandle Timer;
 
 	UPROPERTY()
-	TObjectPtr<UAbilityTask_WaitInputRelease> AsyncTask_WaitInputRelease;
+	UAbilityTask_WaitInputRelease* AsyncTask_WaitInputRelease;
 	UFUNCTION()
 	void OnKeyReleased(float TimeHeld);
-	
 	
 };

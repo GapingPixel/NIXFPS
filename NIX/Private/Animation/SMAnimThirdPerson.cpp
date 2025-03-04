@@ -2,20 +2,16 @@
 
 
 #include "Animation/SMAnimThirdPerson.h"
-#include "AbilitySystemGlobals.h"
 #include "AnimationStateMachineLibrary.h"
 #include "NiagaraFunctionLibrary.h"
-#include "Components/SMCharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Possessables/SMPlayerCharacter.h"
 
 void FTPAnimInstanceProxy::InitializeObjects(UAnimInstance* InAnimInstance)
 {
 	FAnimInstanceProxy::InitializeObjects(InAnimInstance);
-	Owner = InAnimInstance->TryGetPawnOwner();
-	if (!Owner) return;
-
-	Character = Cast<ASMPlayerCharacter>(Owner);
+	Character = Cast<ASMPlayerCharacter>(InAnimInstance->TryGetPawnOwner());
+	if (!Character.Get()) return;
 	//MovementComponent = Cast<USMCharacterMovementComponent>(Owner->GetMovementComponent());
 }
 
@@ -29,6 +25,33 @@ void FTPAnimInstanceProxy::Update(const float DeltaSeconds)
 	FAnimInstanceProxy::Update(DeltaSeconds);
 }
 
+void USMAnimThirdPerson::NativeInitializeAnimation()
+{
+	Super::NativeInitializeAnimation();
+	OwningCharacter = Cast<ASMPlayerCharacter>(TryGetPawnOwner());
+	FTimerHandle TimerSleep;
+	GetWorld()->GetTimerManager().SetTimer(TimerSleep, FTimerDelegate::CreateWeakLambda(this, [this]()
+	{
+		bWaitForCompAssign = true;
+		Proxy.AbilitySystemComponent = OwningCharacter->GetSMAbilitySystemComponent(); 
+	}), 0.1, false);
+}
+
+void USMAnimThirdPerson::NativeThreadSafeUpdateAnimation(const float DeltaSeconds)
+{
+	Super::NativeThreadSafeUpdateAnimation(DeltaSeconds);
+	if (!Proxy.Character.Get()) return;
+	UpdateRotationData(DeltaSeconds);
+	UpdateVelocityData();
+	UpdateRootYawOffset(DeltaSeconds);
+	
+	bShouldBlendLegs = Proxy.Character->InventoryComponent->IsUnEquippingCurrentEquippable() || !Proxy.Character->InventoryComponent->HasEquippableEquipped();
+	if (bWaitForCompAssign)
+	{
+		bIsSprinting = Proxy.AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Character.Sprinting")));
+	}
+}
+
 void USMAnimThirdPerson::UpdateRotationData(float Delta)
 {
 	if (const APawn* PawnOwner = TryGetPawnOwner(); PawnOwner)
@@ -37,26 +60,20 @@ void USMAnimThirdPerson::UpdateRotationData(float Delta)
 		AimPitch = FMath::Clamp(InterpolatedRotator.Pitch, -90.0f, 90.0f);
 		const FRotator CurrentRotation = PawnOwner->GetActorRotation();
 		YawDeltaSinceLastUpdate = CurrentRotation.Yaw - WorldRotation.Yaw;
-		YawDeltaSpeed =  UKismetMathLibrary::SafeDivide(YawDeltaSinceLastUpdate, GetDeltaSeconds());
+		YawDeltaSpeed = (Delta != 0.0f) ? (YawDeltaSinceLastUpdate / Delta) : 0.0f;
 		WorldRotation = CurrentRotation;
 	}
 }
 
 void USMAnimThirdPerson::UpdateVelocityData()
 {
-	if (const APawn* PawnOwner = TryGetPawnOwner(); PawnOwner)
-	{
-		WorldVelocity = PawnOwner->GetVelocity();
-		WorldVelocity2D = FVector2d(WorldVelocity.X, WorldVelocity.Y);
-		Speed = WorldVelocity.Length();
-		bIsMoving = Speed > 0;
-		if (OwningCharacter)
-		{
-			const FVector UnrotatedVector = OwningCharacter->GetActorRotation().UnrotateVector(WorldVelocity);
-			ForwardVelocity = UnrotatedVector.X / 265.0;
-			StrafeVelocity = UnrotatedVector.Y / 265.0;
-		}
-	}
+	WorldVelocity = Proxy.Character->GetVelocity();
+	WorldVelocity2D = FVector2d(WorldVelocity.X, WorldVelocity.Y);
+	Speed = WorldVelocity.Length();
+	bIsMoving = Speed > 0;
+	const FVector UnrotatedVector = Proxy.Character->GetActorRotation().UnrotateVector(WorldVelocity);
+	ForwardVelocity = UnrotatedVector.X / 265.0;
+	StrafeVelocity = UnrotatedVector.Y / 265.0;
 }
 
 void USMAnimThirdPerson::UpdateRootYawOffset(const float Delta)
@@ -91,7 +108,7 @@ void USMAnimThirdPerson::SetRootYawOffset(const float InRootYawOffset)
 void USMAnimThirdPerson::ProcessTurnYawCurve()
 {
 	PreviousTurnYawCurveValue = TurnYawCurveValue;
-	const auto CurveValue = GetCurveValue(FName("TurnYawWeight"));
+	const float CurveValue = GetCurveValue(FName("TurnYawWeight"));
 	if (FMath::IsNearlyEqual(CurveValue, 0.0, 0.0001) )
 	{
 		TurnYawCurveValue = 0.0;
@@ -105,7 +122,7 @@ void USMAnimThirdPerson::ProcessTurnYawCurve()
 	}
 }
 
-void USMAnimThirdPerson::UpdateIdleStateCPP(const FAnimUpdateContext Context, const FAnimNodeReference Node)
+void USMAnimThirdPerson::UpdateIdleState(const  FAnimUpdateContext& Context, const  FAnimNodeReference& Node)
 {
 	FAnimationStateResultReference AnimationState;
 	bool bConversionSucceeded = false;
@@ -119,47 +136,27 @@ void USMAnimThirdPerson::UpdateIdleStateCPP(const FAnimUpdateContext Context, co
 	}
 }
 
-UAnimInstance* USMAnimThirdPerson::GetMainAnimBPThreadSafe() const
-{
-	return Cast<USMAnimThirdPerson>( GetOwningComponent()->GetAnimInstance());
-}
-
-
-USMCharacterMovementComponent* USMAnimThirdPerson::GetSMMovementComponent() const
-{
-	return Cast<USMCharacterMovementComponent>(TryGetPawnOwner()->GetMovementComponent());
-}
-
 void USMAnimThirdPerson::PlayFootstepEffect(const bool bIsLeftFoot) const
 {
 	const FVector Start = bIsLeftFoot ? OwningCharacter->GetMesh()->GetSocketLocation("foot_l") : OwningCharacter->GetMesh()->GetSocketLocation("foot_r");
 	const UWorld* W = GetWorld();
 	
-	if (APawn* PawnOwner = TryGetPawnOwner(); PawnOwner)
-	{
-		TArray<AActor*> ToIgnore;
-		ToIgnore.Reserve(1);
-		ToIgnore.Add(PawnOwner);
-		//FCollisionQueryParams TraceParams = ConfigureCollisionParams(FName(NoInit), false, ToIgnore, true, W);
-		FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(TraceFootstep), false);
-		TraceParams.AddIgnoredActors(ToIgnore);
-		TraceParams.bReturnPhysicalMaterial = true;
-		FHitResult HitResult;
-		const bool bHit = W->LineTraceSingleByChannel(
-			HitResult,
-			Start,
-			FVector(Start.X, Start.Y, Start.Z-75.0),
-			ECC_Visibility,
-			TraceParams
-		);
-		if (bHit)
-		{
-			const FVector	ImpactPoint = HitResult.ImpactPoint;
-			const FVector	ImpactNormal = HitResult.ImpactNormal;
-			const EPhysicalSurface SurfaceType = HitResult.PhysMaterial.Get()->SurfaceType;
-			USoundBase* FootSound = nullptr;
-			UNiagaraSystem* FootSurface;
-			switch (SurfaceType) {
+	TArray<AActor*> ToIgnore;
+	ToIgnore.Reserve(1);
+	ToIgnore.Add(OwningCharacter);
+	//FCollisionQueryParams TraceParams = ConfigureCollisionParams(FName(NoInit), false, ToIgnore, true, W);
+	FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(TraceFootstep), false);
+	TraceParams.AddIgnoredActors(ToIgnore);
+	TraceParams.bReturnPhysicalMaterial = true;
+	FHitResult HitResult;
+	const bool bHit = W->LineTraceSingleByChannel(HitResult,Start,FVector(Start.X, Start.Y, Start.Z-75.0),ECC_Visibility,TraceParams);
+	if (bHit) {
+		const FVector ImpactPoint = HitResult.ImpactPoint;
+		const FVector ImpactNormal = HitResult.ImpactNormal;
+		const EPhysicalSurface SurfaceType = HitResult.PhysMaterial.Get()->SurfaceType;
+		USoundBase* FootSound = nullptr;
+		UNiagaraSystem* FootSurface;
+		switch (SurfaceType) {
 			case SurfaceType_Default:
 				FootSound = FootSoundDefault;
 				FootSurface = FootSurfaceDefault;
@@ -204,57 +201,15 @@ void USMAnimThirdPerson::PlayFootstepEffect(const bool bIsLeftFoot) const
 			}
 			const FRotator RotNormal = ImpactNormal.ToOrientationRotator();
 		
-			UGameplayStatics::PlaySoundAtLocation(W, FootSound, ImpactPoint,  RotNormal, 1,1,0, ImpactAttenuationSettings, nullptr, TryGetPawnOwner());
+			UGameplayStatics::PlaySoundAtLocation(W, FootSound, ImpactPoint,  RotNormal, 1,1,0, ImpactAttenuationSettings, nullptr, OwningCharacter);
 			UNiagaraFunctionLibrary::SpawnSystemAtLocation(W, FootSurface, ImpactPoint,  RotNormal);
-		}
 	}
-	
-}
-
-void USMAnimThirdPerson::NativeThreadSafeUpdateAnimation(const float DeltaSeconds)
-{
-	Super::NativeThreadSafeUpdateAnimation(DeltaSeconds);
-	UpdateRotationData(DeltaSeconds);
-	UpdateVelocityData();
-	UpdateRootYawOffset(DeltaSeconds);
-	if (OwningCharacter)
-	{
-		bShouldBlendLegs = OwningCharacter->InventoryComponent->IsUnEquippingCurrentEquippable() || !OwningCharacter->InventoryComponent->HasEquippableEquipped();
-	}
-}
-
-
-void USMAnimThirdPerson::NativeBeginPlay()
-{
-	Super::NativeBeginPlay();
-	if (APawn* PawnOwner = TryGetPawnOwner(); PawnOwner)
-	{
-		OwningCharacter = Cast<ASMPlayerCharacter>(PawnOwner);
-	}
-}
-
-void USMAnimThirdPerson::NativeUpdateAnimation(float DeltaSeconds)
-{
-	Super::NativeUpdateAnimation(DeltaSeconds);
-	// Get the pawn owner
-	const APawn* PawnOwner = TryGetPawnOwner();
-	if (!PawnOwner)
-	{
-		
-		return;
-	}
-	const UAbilitySystemComponent* AbilitySystemComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(PawnOwner);
-	if (!AbilitySystemComponent)
-	{
-		return;
-	}
-	bIsSprinting = AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("Character.Sprinting")));
 }
 
 uint8 USMAnimThirdPerson::SelectCardinalDirectionFromAngle(const float Angle, const float DeadZone, uint8 CurrentDirection,
                                                            const bool bUseCurrentDirection) const
 {
-	float AbsAngle = FMath::Abs(Angle);
+	const float AbsAngle = FMath::Abs(Angle);
 	float FwdDeadZone = DeadZone;
 	float BwdDeadZone = DeadZone;
 	if (bUseCurrentDirection)

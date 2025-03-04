@@ -8,6 +8,7 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "SMAnimThirdPerson.generated.h"
 
+class UAbilitySystemComponent;
 class UNiagaraSystem;
 class USMCharacterMovementComponent;
 class ASMPlayerCharacter;
@@ -31,11 +32,12 @@ protected:
 
 public:
 	UPROPERTY(Transient)
-	TObjectPtr<APawn> Owner;
+	TWeakObjectPtr<ASMPlayerCharacter> Character;
 	UPROPERTY(Transient)
-	TObjectPtr<ASMPlayerCharacter> Character;
+	TWeakObjectPtr<USMCharacterMovementComponent> MovementComponent;
 	UPROPERTY(Transient)
-	TObjectPtr<USMCharacterMovementComponent> MovementComponent;
+	TWeakObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
+
 };
 
 UCLASS()
@@ -49,6 +51,7 @@ public:
 	float Speed;
 	FVector2D WorldVelocity2D;
 
+	bool bWaitForCompAssign;
     // Character State Data
     UPROPERTY(BlueprintReadWrite, Category="Character State Data")
     bool bIsMoving;
@@ -85,8 +88,8 @@ public:
 
     UPROPERTY()
     TObjectPtr<ASMPlayerCharacter> OwningCharacter; // Replace AYourCharacterClass with your character class
-
-    UPROPERTY(BlueprintReadWrite, Category="Turn In Place Data")
+	
+	UPROPERTY(BlueprintReadWrite, Category="Turn In Place Data")
     bool bShouldBlendLegs;
 
     UPROPERTY(BlueprintReadWrite, Category="Turn In Place Data")
@@ -95,11 +98,8 @@ public:
     UPROPERTY(BlueprintReadWrite, Category="Turn In Place Data")
     bool bIsSprinting;
 
-
-	virtual void NativeBeginPlay() override;
-
-	virtual void NativeUpdateAnimation(const float DeltaSeconds) override;
-
+	virtual void NativeInitializeAnimation() override;
+	
 	UFUNCTION(BlueprintPure, Category="Helper Functions", meta=(Keywords="Cardinal Direction, Angle", CompactNodeTitle="Select Cardinal Direction", ThreadSafe, BlueprintThreadSafe))
 	uint8 SelectCardinalDirectionFromAngle(float Angle, float DeadZone, uint8 CurrentDirection, bool bUseCurrentDirection) const;
 	
@@ -119,14 +119,8 @@ public:
 	void ProcessTurnYawCurve();
 
 	UFUNCTION(BlueprintCallable, meta=(ThreadSafe="true", BlueprintThreadSafe))
-	void UpdateIdleStateCPP(const  FAnimUpdateContext Context, const  FAnimNodeReference Node);
+	void UpdateIdleState(const  FAnimUpdateContext& Context, const  FAnimNodeReference& Node);
 	
-	UFUNCTION(BlueprintPure, meta=(ThreadSafe, BlueprintThreadSafe))
-	UAnimInstance* GetMainAnimBPThreadSafe() const;
-	
-	UFUNCTION(BlueprintCallable,  BlueprintPure, meta=(ThreadSafe, BlueprintThreadSafe))
-	USMCharacterMovementComponent* GetSMMovementComponent() const;
-
 	void PlayFootstepEffect(bool bIsLeftFoot = false) const;
 
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category="Assets")

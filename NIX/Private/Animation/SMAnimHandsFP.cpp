@@ -2,8 +2,6 @@
 
 
 #include "Animation/SMAnimHandsFP.h"
-
-#include "Animation/AnimExecutionContext.h"
 #include "Components/SMCharacterMovementComponent.h"
 #include "Components/SMHealthComponent.h"
 #include "Components/SMPlayerAttributesComponent.h"
@@ -13,11 +11,10 @@
 void FASAnimInstanceProxy::InitializeObjects(UAnimInstance* InAnimInstance)
 {
 	FAnimInstanceProxy::InitializeObjects(InAnimInstance);
-	Owner = InAnimInstance->TryGetPawnOwner();
-	if (!Owner) return;
+	Character = Cast<ASMPlayerCharacter>(InAnimInstance->TryGetPawnOwner());
+	if (!Character.Get()) return;
 
-	Character = Cast<ASMPlayerCharacter>(Owner);
-	MovementComponent = Cast<USMCharacterMovementComponent>(Owner->GetMovementComponent());
+	MovementComponent = Cast<USMCharacterMovementComponent>(Character->GetMovementComponent());
 }
 
 void FASAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds)
@@ -30,13 +27,23 @@ void FASAnimInstanceProxy::Update(float DeltaSeconds)
 	FAnimInstanceProxy::Update(DeltaSeconds);
 }
 
+void USMAnimHandsFP::OnADS(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	bIsADS = true;
+}
+
+void USMAnimHandsFP::OnUnADS(const FAnimUpdateContext& Context, const FAnimNodeReference& Node)
+{
+	bIsADS = false;
+}
+
 void USMAnimHandsFP::NativeThreadSafeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeThreadSafeUpdateAnimation(DeltaSeconds);
 	
-	if (!Proxy.Owner) return;
+	if (!Proxy.Character.Get()) return;
 	const FVector Velocity = Proxy.Character->GetVelocity();
-	float Speed = Velocity.Length();
+	const float Speed = Velocity.Length();
 	const FVector UnrotatedVector = Proxy.Character->GetActorRotation().UnrotateVector(Velocity);
 	LocalForwardVelocity = UnrotatedVector.X;
 	LocalStrafeVelocity = UnrotatedVector.Y;

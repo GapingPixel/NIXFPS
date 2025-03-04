@@ -127,7 +127,7 @@ protected:
 	float OverrideBlendOutTimeForStopWhenEndAbility;
 
 	UPROPERTY()
-	USkeletalMeshComponent* Mesh;
+	TObjectPtr<USkeletalMeshComponent> Mesh;
 
 	FOnMontageBlendingOutStarted BlendingOutDelegate;
 	FOnMontageEnded MontageEndedDelegate;

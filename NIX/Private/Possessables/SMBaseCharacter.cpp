@@ -208,7 +208,7 @@ void ASMBaseCharacter::OnAbilitySystemComponentInitialized()
 {
 	// @TODO: instead of using GetSMAbilitySystemComponent, how about we actually store the variable on this character?
 	HealthComp->InitializeWithAbilitySystemComponent(GetSMAbilitySystemComponent());
-	BP_OnAbilitySystemComponentInitialized();
+	//BP_OnAbilitySystemComponentInitialized();
 }
 
 void ASMBaseCharacter::OnAbilitySystemComponentUnInitialized() const

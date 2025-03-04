@@ -21,7 +21,8 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Default")
 	bool bAllowLastFire;
 
-	TObjectPtr<UAbilityTask_WaitGameplayEvent> StartSprintingTask;
+	UPROPERTY()
+	UAbilityTask_WaitGameplayEvent* StartSprintingTask;
 
 	virtual UAnimMontage* DetermineFireAnimation(EEMeshType MeshType = EEMeshType::Arms1P) const override;
 	UFUNCTION()

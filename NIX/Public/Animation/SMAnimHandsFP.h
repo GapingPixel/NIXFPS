@@ -27,11 +27,9 @@ protected:
 
 public:
 	UPROPERTY(Transient)
-	TObjectPtr<APawn> Owner;
+	TWeakObjectPtr<ASMPlayerCharacter> Character;
 	UPROPERTY(Transient)
-	TObjectPtr<ASMPlayerCharacter> Character;
-	UPROPERTY(Transient)
-	TObjectPtr<USMCharacterMovementComponent> MovementComponent;
+	TWeakObjectPtr<USMCharacterMovementComponent> MovementComponent;
 };
 
 UCLASS()
@@ -56,7 +54,6 @@ public:
 
 	UPROPERTY(BlueprintReadWrite)
 	bool bBlendPoseActiveValue;
-	
 	
 	UPROPERTY(BlueprintReadWrite)
 	float FrameSkip;
@@ -105,6 +102,13 @@ public:
 	bool bRunStartRunEndCanEnter;
 	UPROPERTY(BlueprintReadWrite)
 	bool bRunEndToNothingCanEnter;
+
+	UFUNCTION(BlueprintCallable, meta=(ThreadSafe="true", BlueprintThreadSafe))
+	void OnADS(const  FAnimUpdateContext& Context, const  FAnimNodeReference& Node);
+
+	UFUNCTION(BlueprintCallable, meta=(ThreadSafe="true", BlueprintThreadSafe))
+	void OnUnADS(const  FAnimUpdateContext& Context, const  FAnimNodeReference& Node);
+	
 private:
 	float LocalForwardVelocity;
 	float LocalStrafeVelocity;

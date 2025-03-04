@@ -20,7 +20,7 @@ class NIX_API USMGA_Sprint : public USMGameplayAbility
 	TObjectPtr<USMCharacterMovementComponent> MoveComp;
 
 	UPROPERTY()
-	TObjectPtr<UAbilityTask_WaitInputRelease> AsyncTask;
+	UAbilityTask_WaitInputRelease* AsyncTask;
 	
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;
 
@@ -36,7 +36,7 @@ class NIX_API USMGA_Jump : public USMGameplayAbility
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TObjectPtr<UAbilityTask_WaitInputRelease> AsyncTask;
+	UAbilityTask_WaitInputRelease* AsyncTask;
 
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<UGameplayEffect> GEStaminaCost;

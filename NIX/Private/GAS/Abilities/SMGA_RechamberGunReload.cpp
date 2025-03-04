@@ -12,7 +12,7 @@ USMGA_RechamberGunReload::USMGA_RechamberGunReload()
 {
 	ExitReloadTime = 0.5;
 	ReloadAnimationPlayRate = 1.0;
-	timeToDisplay = 1;
+	TimeToDisplay = 1;
 }
 
 void USMGA_RechamberGunReload::ActivateAbility(const FGameplayAbilitySpecHandle Handle,

@@ -47,8 +47,8 @@ public:
 	UPROPERTY()
 	TObjectPtr<ASMPlayerCharacter> Character;
 	UPROPERTY()
-	TObjectPtr<USMPlayMontageForMesh> MontageTask;
+	USMPlayMontageForMesh* MontageTask;
 	UPROPERTY()
-	TObjectPtr<UAbilityTask_WaitGameplayEvent> WaitForSprintTask;
+	UAbilityTask_WaitGameplayEvent* WaitForSprintTask;
 	
 };

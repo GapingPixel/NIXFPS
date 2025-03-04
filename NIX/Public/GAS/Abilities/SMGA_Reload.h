@@ -62,13 +62,13 @@ public:
 	virtual void EndAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, bool bReplicateEndAbility, bool bWasCancelled) override;
 	
 	UPROPERTY()
-	TObjectPtr<USMPlayMontageForMesh> AsyncTaskPlayMontageFullBodyMontage3p;
+	USMPlayMontageForMesh* AsyncTaskPlayMontageFullBodyMontage3p;
 
 	UPROPERTY()
-	TObjectPtr<USMPlayMontageForMesh> AsyncTaskPlayMontageDetermineReloadMontangeArms1p;
+	USMPlayMontageForMesh* AsyncTaskPlayMontageDetermineReloadMontangeArms1p;
 
 	UPROPERTY()
-	TObjectPtr<USMPlayMontageForMesh> AsyncTaskPlayMontageDetermineReloadMontageEquippable1p;
+	USMPlayMontageForMesh* AsyncTaskPlayMontageDetermineReloadMontageEquippable1p;
 
 	
 };

@@ -25,33 +25,33 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditDefaultsOnly, Category="Default", meta=(MultiLine="true"))
 	float ExitReloadTime;
 
-	float timeToDisplay = 1;
+	float TimeToDisplay = 1;
 	
 	UPROPERTY()
 	TObjectPtr<ASMManualRechamberGunBase> RechamberGun;
 	UPROPERTY()
-	TObjectPtr<UAbilityTask_WaitGameplayEvent> WaitEventTask;
+	UAbilityTask_WaitGameplayEvent* WaitEventTask;
 	UFUNCTION()
 	void OnWaitNotify(FGameplayEventData Payload);
 	UPROPERTY()
-	TObjectPtr<UAbilityTask_WaitGameplayEvent> CancelReloadTask;
+	UAbilityTask_WaitGameplayEvent* CancelReloadTask;
 	UFUNCTION()
 	void OnCancelReload(FGameplayEventData Payload);
 	UPROPERTY()
-	TObjectPtr<USMPlayMontageForMesh> AsyncTaskPlayMontageForMeshEnterReload;
+	USMPlayMontageForMesh* AsyncTaskPlayMontageForMeshEnterReload;
 	UFUNCTION()
 	void InterruptedReload(FGameplayTag EventTag, FGameplayEventData EventData);
 	UFUNCTION()
 	void OnBlendOut(FGameplayTag EventTag, FGameplayEventData EventData);
 	UPROPERTY()
-	TObjectPtr<USMPlayMontageForMesh> AsyncTaskPlayMontageForMeshReloadLoopHands;
+	USMPlayMontageForMesh* AsyncTaskPlayMontageForMeshReloadLoopHands;
 	UPROPERTY()
-	TObjectPtr<USMPlayMontageForMesh> AsyncTaskPlayMontageForMeshReloadLoopWeapon;
+	USMPlayMontageForMesh* AsyncTaskPlayMontageForMeshReloadLoopWeapon;
 	UPROPERTY()
-	TObjectPtr<USMPlayMontageForMesh> AsyncTaskPlayMontageForMeshEndReload;
+	USMPlayMontageForMesh* AsyncTaskPlayMontageForMeshEndReload;
 
 	FTimerHandle ExitAnimTimer;
-	int8 AmountToReload;
+	uint8 AmountToReload;
 	bool bShouldCancelReload;
 
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const FGameplayEventData* TriggerEventData) override;

@@ -33,15 +33,15 @@ public:
 	
 	virtual UAnimMontage* DetermineAttackAnimation(EEMeshType MeshType = EEMeshType::Arms1P) const;
 	UPROPERTY()
-	TObjectPtr<USMPlayMontageForMesh> AsyncTaskPlayMontageForMeshArms1P;
+	USMPlayMontageForMesh* AsyncTaskPlayMontageForMeshArms1P;
 	UPROPERTY()
-	TObjectPtr<USMPlayMontageForMesh> AsyncTaskPlayMontageForMeshOverlayFire;
+	USMPlayMontageForMesh* AsyncTaskPlayMontageForMeshOverlayFire;
 	UPROPERTY()
-	TObjectPtr<USMPlayMontageForMesh> AsyncTaskPlayMontageForMeshArms1PEquippableMesh;
+	USMPlayMontageForMesh* AsyncTaskPlayMontageForMeshArms1PEquippableMesh;
 	UPROPERTY()
-	TObjectPtr<USMPlayMontageForMesh> AsyncTaskPlayMontageFireAnim;
+	USMPlayMontageForMesh* AsyncTaskPlayMontageFireAnim;
 	UPROPERTY()
-	TObjectPtr<UAbilityTask_WaitInputRelease> AsyncTask_WaitInputRelease;
+	UAbilityTask_WaitInputRelease* AsyncTask_WaitInputRelease;
 
 	UPROPERTY(EditDefaultsOnly)
 	TSubclassOf<UGameplayEffect> GEStaminaCost;

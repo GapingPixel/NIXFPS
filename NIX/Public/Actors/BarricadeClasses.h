@@ -106,8 +106,7 @@ class NIX_API ASMBarricadeObject : public ASMBarricadeBase
 {
 	GENERATED_BODY()
 
-
-	protected:
+protected:
 	virtual void PostInitializeComponents() override;
 private:
 /*
